@@ -1,17 +1,21 @@
 import OpenAI from 'openai';
 
-// NEVER hardcode API keys in your code - use environment variables instead
-// For React Native/Expo, you can use a .env file with react-native-dotenv
-// or process.env in a Node.js environment
-const OPENAI_API_KEY = ''; // Remove hardcoded key
+// Use environment variables for API keys
+// You'll need to create a .env file at the root of your project
+// with EXPO_PUBLIC_OPENAI_API_KEY=your_api_key
+// Note: For Expo, environment variables must be prefixed with EXPO_PUBLIC_ to be accessible in the client
+const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
 
-// Create the OpenAI client
-const openaiClient = new OpenAI({
-  apiKey: OPENAI_API_KEY,
+// Use mock data when API key is not available
+const useMockData = !apiKey;
+
+// Create the OpenAI client only if we have an API key
+const openaiClient = useMockData ? null : new OpenAI({
+  apiKey,
   dangerouslyAllowBrowser: true, // Required for browser environments
 });
 
-// Export a safe version with improved error handling
+// Export a safe version with error handling
 export const openai = {
   chat: {
     completions: {
@@ -19,14 +23,12 @@ export const openai = {
         try {
           console.log("Calling OpenAI API...");
           
-          // Check if API key is available
-          if (!OPENAI_API_KEY) {
-            console.warn("No API key provided. Using mock data instead.");
+          if (useMockData) {
+            console.log("No API key found. Using mock data instead.");
             return getMockResponse(params);
           }
           
           const response = await openaiClient.chat.completions.create(params);
-          console.log("API call successful");
           return response;
         } catch (error: any) {
           console.error("OpenAI API Error:", error);
@@ -52,7 +54,7 @@ export const openai = {
   }
 };
 
-// Mock response function for testing when no API key is available
+// Mock response function for testing
 function getMockResponse(params: any) {
   const userMessage = params.messages.find((m: any) => m.role === "user")?.content || "";
   
