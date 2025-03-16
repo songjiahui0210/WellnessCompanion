@@ -1,176 +1,131 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { theme } from '../theme';
-import { NavigationParams, JournalEntry } from '../types';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { ScreenProps } from '../types';
+import { openai } from '../services/openai';
 
-type Props = {
-  navigation: NativeStackNavigationProp<NavigationParams, 'Analysis'>;
-  route: RouteProp<NavigationParams, 'Analysis'>;
-};
-
-const advisorOptions = [
-  { id: 'therapist', label: 'Therapist', icon: '👩‍⚕️' },
-  { id: 'friend', label: 'Close Friend', icon: '🤝' },
-  { id: 'parent', label: 'Parent', icon: '👨‍👩‍👧‍👦' },
-  { id: 'mentor', label: 'Mentor', icon: '🎓' },
-];
-
-const recipientOptions = [
-  { id: 'self', label: 'Myself', icon: '🤔' },
-  { id: 'friend', label: 'A Friend', icon: '👥' },
-  { id: 'partner', label: 'Partner', icon: '💑' },
-  { id: 'family', label: 'Family Member', icon: '👨‍👩‍👧‍👦' },
-];
-
-export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { emotion, content, isVoiceNote } = route.params;
-  const [loading, setLoading] = useState(true);
+export const AnalysisScreen: React.FC<ScreenProps<'Analysis'>> = ({ 
+  navigation, 
+  route 
+}) => {
+  const { emotion, content, intensity, isVoiceNote } = route.params;
+  const [loading, setLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
-  const [selectedAdvisor, setSelectedAdvisor] = useState('');
-  const [selectedRecipient, setSelectedRecipient] = useState('');
-  const [saveToJournal, setSaveToJournal] = useState(true);
 
-  // Simulate AI analysis
+  const generateSummary = async () => {
+    setLoading(true);
+    try {
+      const prompt = `The user is feeling "${emotion.name}" with an intensity level of ${intensity} (1 is mild, 10 is very strong).
+        Their thoughts: "${content}"
+        Please summarize their feelings in a supportive, authentic, and concise manner.
+        Offer empathy and encouragement without being overly wordy.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a supportive emotional companion app that offers empathy and understanding." },
+          { role: "user", content: prompt }
+        ],
+      });
+      
+      const summary = response.choices[0]?.message?.content || 
+        "I couldn't generate a summary.";
+      
+      setAiSummary(summary);
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setAiSummary('Sorry, I had trouble analyzing your emotions. Please try again.');
+    }
+    setLoading(false);
+  };
+
   React.useEffect(() => {
-    setTimeout(() => {
-      setAiSummary(
-        "Based on your entry, it seems you're experiencing strong emotions due to a challenging situation. Your response shows self-awareness and a desire to understand these feelings better."
-      );
-      setLoading(false);
-    }, 2000);
+    generateSummary();
   }, []);
 
-  const handleContinue = () => {
-    const journalEntry: JournalEntry = {
+  const handleNextStep = (responseType: 'summary' | 'advice' | 'expression') => {
+    const journalEntry = {
       id: Date.now().toString(),
       date: new Date(),
       emotion,
       content,
+      intensity,
       isVoiceNote,
       aiSummary,
-      advisorPerspective: selectedAdvisor,
-      recipient: selectedRecipient,
-      isLogged: saveToJournal,
+      isLogged: true
     };
 
-    navigation.navigate('AIResponse', { journalEntry });
+    navigation.navigate('AIResponse', { 
+      journalEntry,
+      responseType
+    });
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>AI Analysis</Text>
-      
+    <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-          <Text style={styles.loadingText}>Analyzing your entry...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Analyzing your feelings...</Text>
         </View>
       ) : (
         <>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Summary</Text>
+            <Text style={styles.summaryTitle}>AI Summary</Text>
             <Text style={styles.summaryText}>{aiSummary}</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Choose Advisor Perspective</Text>
-            <View style={styles.optionsGrid}>
-              {advisorOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionCard,
-                    selectedAdvisor === option.id && styles.selectedOption,
-                  ]}
-                  onPress={() => setSelectedAdvisor(option.id)}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>What would you like to do next?</Text>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Express To</Text>
-            <View style={styles.optionsGrid}>
-              {recipientOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionCard,
-                    selectedRecipient === option.id && styles.selectedOption,
-                  ]}
-                  onPress={() => setSelectedRecipient(option.id)}
-                >
-                  <Text style={styles.optionIcon}>{option.icon}</Text>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.saveSection}>
-            <TouchableOpacity
-              style={styles.saveToggle}
-              onPress={() => setSaveToJournal(!saveToJournal)}
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={() => handleNextStep('summary')}
             >
-              <View style={[styles.checkbox, saveToJournal && styles.checked]} />
-              <Text style={styles.saveText}>Save to journal</Text>
+              <Text style={styles.optionText}>📝 Log this emotion</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={() => handleNextStep('advice')}
+            >
+              <Text style={styles.optionText}>💡 Get advice</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.optionButton}
+              onPress={() => handleNextStep('expression')}
+            >
+              <Text style={styles.optionText}>💬 Express to someone</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.continueButton,
-              (!selectedAdvisor || !selectedRecipient) && styles.disabledButton,
-            ]}
-            onPress={handleContinue}
-            disabled={!selectedAdvisor || !selectedRecipient}
-          >
-            <Text style={styles.continueButtonText}>Continue</Text>
-          </TouchableOpacity>
         </>
       )}
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
-  },
-  title: {
-    ...theme.typography.h1,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl * 2,
   },
   loadingText: {
     ...theme.typography.body,
-    color: theme.colors.text,
     marginTop: theme.spacing.md,
+    color: theme.colors.text,
   },
   summaryCard: {
     backgroundColor: theme.colors.card,
-    borderRadius: 12,
     padding: theme.spacing.lg,
+    borderRadius: 12,
     marginBottom: theme.spacing.xl,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   summaryTitle: {
     ...theme.typography.h2,
@@ -181,79 +136,24 @@ const styles = StyleSheet.create({
     ...theme.typography.body,
     color: theme.colors.text,
   },
-  section: {
-    marginBottom: theme.spacing.xl,
-  },
   sectionTitle: {
     ...theme.typography.h2,
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  optionsContainer: {
+    gap: theme.spacing.md,
   },
-  optionCard: {
-    width: '48%',
+  optionButton: {
     backgroundColor: theme.colors.card,
+    padding: theme.spacing.lg,
     borderRadius: 12,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  selectedOption: {
-    backgroundColor: theme.colors.primary + '20',
-    borderColor: theme.colors.primary,
-    borderWidth: 2,
-  },
-  optionIcon: {
-    fontSize: 24,
-    marginBottom: theme.spacing.sm,
-  },
-  optionLabel: {
-    ...theme.typography.body,
-    color: theme.colors.text,
-  },
-  saveSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  saveToggle: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    marginRight: theme.spacing.md,
-  },
-  checked: {
-    backgroundColor: theme.colors.primary,
-  },
-  saveText: {
+  optionText: {
     ...theme.typography.body,
     color: theme.colors.text,
-  },
-  continueButton: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  continueButtonText: {
-    color: 'white',
-    fontWeight: '500',
+    marginLeft: theme.spacing.md,
   },
 }); 

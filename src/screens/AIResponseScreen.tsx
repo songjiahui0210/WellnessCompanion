@@ -1,69 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { theme } from '../theme';
-import { NavigationParams } from '../types';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { ScreenProps } from '../types';
+import { openai } from '../services/openai';
 
-type Props = {
-  navigation: NativeStackNavigationProp<NavigationParams, 'AIResponse'>;
-  route: RouteProp<NavigationParams, 'AIResponse'>;
-};
-
-export const AIResponseScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { journalEntry } = route.params;
+export const AIResponseScreen: React.FC<ScreenProps<'AIResponse'>> = ({ 
+  navigation, 
+  route 
+}) => {
+  const { journalEntry, responseType } = route.params;
   const [loading, setLoading] = useState(true);
   const [response, setResponse] = useState('');
 
-  // Simulate AI generating personalized response
-  useEffect(() => {
-    setTimeout(() => {
-      const advisorResponses = {
-        therapist: "From a therapeutic perspective, it's important to acknowledge that your feelings are valid. Your emotional response is a natural reaction to this situation. Let's explore some coping strategies that might help you process these emotions in a healthy way...",
-        friend: "Hey, I hear you and I totally get what you're going through. It's completely normal to feel this way, and I want you to know that I'm here for you. Have you considered looking at it this way...",
-        parent: "I care about you deeply and it hurts to see you going through this. Remember that challenges help us grow stronger, and I believe in your ability to handle this situation. Here's what I've learned from my experience...",
-        mentor: "Looking at this situation objectively, I can see several learning opportunities here. Your emotional awareness is commendable, and we can use this experience to develop stronger emotional intelligence...",
-      };
+  const generateResponse = async () => {
+    setLoading(true);
+    try {
+      let prompt = '';
+      
+      switch (responseType) {
+        case 'advice':
+          prompt = `The user is feeling "${journalEntry.emotion.name}" with intensity ${journalEntry.intensity}/10.
+            Their thoughts: "${journalEntry.content}"
+            Please provide practical, empathetic advice for dealing with these feelings.`;
+          break;
+        
+        case 'expression':
+          prompt = `The user is feeling "${journalEntry.emotion.name}" with intensity ${journalEntry.intensity}/10.
+            Their thoughts: "${journalEntry.content}"
+            Please help them express these feelings in a clear, thoughtful message that they could share with others.`;
+          break;
+        
+        default:
+          prompt = `Thank you for sharing your feelings. Your emotion "${journalEntry.emotion.name}" has been logged.`;
+          setResponse(prompt);
+          setLoading(false);
+          return;
+      }
 
-      setResponse(advisorResponses[journalEntry.advisorPerspective as keyof typeof advisorResponses]);
-      setLoading(false);
-    }, 2000);
-  }, [journalEntry.advisorPerspective]);
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a supportive emotional companion app that offers empathy and understanding." },
+          { role: "user", content: prompt }
+        ],
+      });
+
+      setResponse(response.choices[0]?.message?.content || 
+        "I couldn't generate a response.");
+    } catch (error) {
+      console.error('Error generating response:', error);
+      setResponse('Sorry, I had trouble generating a response. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    generateResponse();
+  }, []);
+
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(response);
+    alert('Copied to clipboard!');
+  };
+
+  const handleContinue = () => {
+    navigation.navigate('Gratitude', { journalEntry });
+  };
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.emotion}>{journalEntry.emotion.icon}</Text>
-        <Text style={styles.title}>Your Personalized Response</Text>
-      </View>
-
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-          <Text style={styles.loadingText}>Crafting your personalized response...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Generating response...</Text>
         </View>
       ) : (
         <>
           <View style={styles.responseCard}>
-            <View style={styles.advisorHeader}>
-              <Text style={styles.advisorLabel}>
-                Advice from a {journalEntry.advisorPerspective}:
-              </Text>
-            </View>
+            <Text style={styles.responseTitle}>
+              {responseType === 'advice' ? '💡 Advice' : 
+               responseType === 'expression' ? '💬 Expression' : 
+               '📝 Logged'}
+            </Text>
             <Text style={styles.responseText}>{response}</Text>
           </View>
 
-          <View style={styles.summarySection}>
-            <Text style={styles.summaryTitle}>AI Summary</Text>
-            <Text style={styles.summaryText}>{journalEntry.aiSummary}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.continueButton}
-            onPress={() => navigation.navigate('Gratitude', { journalEntry })}
+          <TouchableOpacity 
+            style={styles.copyButton}
+            onPress={copyToClipboard}
           >
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={styles.buttonText}>📋 Copy to Clipboard</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.continueButton}
+            onPress={handleContinue}
+          >
+            <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
         </>
       )}
@@ -77,81 +111,46 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  emotion: {
-    fontSize: 48,
-    marginBottom: theme.spacing.md,
-  },
-  title: {
-    ...theme.typography.h1,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl * 2,
+    minHeight: 200,
   },
   loadingText: {
     ...theme.typography.body,
-    color: theme.colors.text,
     marginTop: theme.spacing.md,
   },
   responseCard: {
     backgroundColor: theme.colors.card,
-    borderRadius: 12,
     padding: theme.spacing.lg,
+    borderRadius: 12,
     marginBottom: theme.spacing.xl,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  advisorHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary,
-    paddingBottom: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  advisorLabel: {
+  responseTitle: {
     ...theme.typography.h2,
-    color: theme.colors.primary,
-    fontSize: 20,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
   },
   responseText: {
     ...theme.typography.body,
     color: theme.colors.text,
-    lineHeight: 24,
   },
-  summarySection: {
-    marginBottom: theme.spacing.xl,
-  },
-  summaryTitle: {
-    ...theme.typography.h2,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  summaryText: {
-    ...theme.typography.body,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.card,
-    padding: theme.spacing.lg,
+  copyButton: {
+    backgroundColor: theme.colors.secondary,
+    padding: theme.spacing.md,
     borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
   continueButton: {
     backgroundColor: theme.colors.primary,
     padding: theme.spacing.md,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
   },
-  continueButtonText: {
-    color: 'white',
-    fontWeight: '500',
+  buttonText: {
+    ...theme.typography.button,
+    color: theme.colors.card,
   },
 }); 

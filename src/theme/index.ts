@@ -8,6 +8,7 @@ export const theme = {
     success: '#95B8A6', // Muted green
     error: '#D88373', // Muted coral
     card: '#FFFFFF', // White
+    disabled: '#CCCCCC',  // Add disabled color
   },
   spacing: {
     xs: 4,
@@ -32,6 +33,11 @@ export const theme = {
     caption: {
       fontSize: 14,
       color: '#666',
+    },
+    button: {  // Add button typography
+      fontSize: 16,
+      color: 'white',
+      fontWeight: '500' as const,
     },
   },
 }; 

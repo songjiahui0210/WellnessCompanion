@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "EmotionsJournal",
+    "slug": "EmotionsJournal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "entryPoint": "./App.tsx"
+  }
+} 

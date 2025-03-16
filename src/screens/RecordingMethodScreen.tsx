@@ -14,7 +14,7 @@ type Props = {
 export const RecordingMethodScreen: React.FC<Props> = ({ navigation, route }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [textContent, setTextContent] = useState('');
-  const { emotion } = route.params;
+  const { emotion, intensity } = route.params;
 
   const handleVoiceRecord = () => {
     setIsRecording(!isRecording);
@@ -24,6 +24,7 @@ export const RecordingMethodScreen: React.FC<Props> = ({ navigation, route }) =>
   const handleSubmit = () => {
     navigation.navigate('Analysis', {
       emotion,
+      intensity,
       content: textContent,
       isVoiceNote: false,
     });

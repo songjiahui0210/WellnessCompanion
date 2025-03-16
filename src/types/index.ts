@@ -11,6 +11,7 @@ export type JournalEntry = {
   id: string;
   date: Date;
   emotion: Emotion;
+  intensity: number;
   content: string;
   isVoiceNote: boolean;
   aiSummary?: string;
@@ -21,10 +22,23 @@ export type JournalEntry = {
 
 export type NavigationParams = {
   EmotionSelection: undefined;
-  RecordingMethod: { emotion: Emotion };
-  Analysis: { emotion: Emotion; content: string; isVoiceNote: boolean };
-  AIResponse: { journalEntry: any };
-  Gratitude: { journalEntry: any };
+  RecordingMethod: { 
+    emotion: Emotion;
+    intensity: number;
+  };
+  Analysis: { 
+    emotion: Emotion; 
+    content: string; 
+    isVoiceNote: boolean;
+    intensity: number;
+  };
+  AIResponse: { 
+    journalEntry: JournalEntry;
+    responseType: 'summary' | 'advice' | 'expression';
+  };
+  Gratitude: { 
+    journalEntry: JournalEntry 
+  };
   Profile: undefined;
 };
 
