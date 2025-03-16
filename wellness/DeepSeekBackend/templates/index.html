@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #f1f1f1;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .status {
+            text-align: center;
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
+        .settings-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .settings-label {
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 120px;
+        }
+        .settings-toggle {
+            cursor: pointer;
+            color: #4CAF50;
+            text-decoration: underline;
+            margin-bottom: 10px;
+            display: block;
+            text-align: right;
+        }
+        .hidden {
+            display: none;
+        }
+        .temperature-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .temperature-value {
+            min-width: 30px;
+        }
+        .markdown-content {
+            line-height: 1.6;
+        }
+        .markdown-content pre {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        .markdown-content code {
+            background-color: #f6f8fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 10px;
+            margin-left: 0;
+            color: #666;
+        }
+        .markdown-content ul, .markdown-content ol {
+            padding-left: 20px;
+        }
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        .markdown-content th {
+            background-color: #f6f8fa;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .preset-button {
+            background-color: #f1f1f1;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .preset-button:hover {
+            background-color: #e1e1e1;
+        }
+    </style>
+</head>
+<body>
+    <h1>DeepSeek Chat</h1>
+    
+    <div class="chat-container">
+        <div class="settings-toggle" id="settings-toggle">Show Advanced Settings</div>
+        
+        <div class="settings-container hidden" id="settings-container">
+            <div class="settings-row">
+                <div class="settings-label">Model:</div>
+                <select id="model-select">
+                    <option value="deepseek-r1:1.5b">DeepSeek R1 (1.5B)</option>
+                    <option value="deepseek-r1:8b">DeepSeek R1 (8B)</option>
+                </select>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-label">Temperature:</div>
+                <div class="temperature-container">
+                    <input type="range" id="temperature-slider" min="0" max="2" step="0.1" value="0.7">
+                    <span class="temperature-value" id="temperature-value">0.7</span>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-label">System Prompt:</div>
+                <div>
+                    <div class="preset-buttons">
+                        <span class="preset-button" id="default-prompt-btn">Default</span>
+                        <span class="preset-button" id="react-prompt-btn">React Expert</span>
+                    </div>
+                    <textarea id="system-prompt">You are a helpful, accurate, and concise assistant. 
+When answering questions:
+- Provide factually correct information
+- If you're unsure about something, say so rather than making up information
+- Format your responses with proper Markdown for readability
+- Use bullet points and numbered lists for clarity when appropriate
+- Keep your answers focused and to the point</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages"></div>
+        
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message here..." />
+            <button id="send-button">Send</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const modelSelect = document.getElementById('model-select');
+            const statusElement = document.getElementById('status');
+            const settingsToggle = document.getElementById('settings-toggle');
+            const settingsContainer = document.getElementById('settings-container');
+            const temperatureSlider = document.getElementById('temperature-slider');
+            const temperatureValue = document.getElementById('temperature-value');
+            const systemPrompt = document.getElementById('system-prompt');
+            const defaultPromptBtn = document.getElementById('default-prompt-btn');
+            const reactPromptBtn = document.getElementById('react-prompt-btn');
+            
+            // System prompt presets
+            const defaultPrompt = `You are a helpful, accurate, and concise assistant. 
+When answering questions:
+- Provide factually correct information
+- If you're unsure about something, say so rather than making up information
+- Format your responses with proper Markdown for readability
+- Use bullet points and numbered lists for clarity when appropriate
+- Keep your answers focused and to the point`;
+
+            const reactPrompt = `You are an expert React developer with deep knowledge of React, JavaScript, and modern web development.
+When answering questions about React:
+- Provide accurate, up-to-date information about React concepts, hooks, patterns, and best practices
+- Include practical code examples with proper syntax highlighting using Markdown
+- Explain complex concepts clearly and concisely
+- Correct any misconceptions in the user's understanding
+- Format your responses with proper Markdown for readability
+- When providing code examples, ensure they are correct, complete, and follow React best practices`;
+            
+            // Set prompt presets
+            defaultPromptBtn.addEventListener('click', function() {
+                systemPrompt.value = defaultPrompt;
+            });
+            
+            reactPromptBtn.addEventListener('click', function() {
+                systemPrompt.value = reactPrompt;
+            });
+            
+            // Toggle settings
+            settingsToggle.addEventListener('click', function() {
+                settingsContainer.classList.toggle('hidden');
+                settingsToggle.textContent = settingsContainer.classList.contains('hidden') 
+                    ? 'Show Advanced Settings' 
+                    : 'Hide Advanced Settings';
+            });
+            
+            // Update temperature value display
+            temperatureSlider.addEventListener('input', function() {
+                temperatureValue.textContent = this.value;
+            });
+            
+            // Load available models
+            fetch('/api/models')
+                .then(response => response.json())
+                .then(models => {
+                    if (models.length > 0) {
+                        // Clear default options
+                        modelSelect.innerHTML = '';
+                        
+                        // Add available models
+                        models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.name;
+                            option.textContent = model.name;
+                            modelSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading models:', error);
+                    statusElement.textContent = 'Error loading models. Make sure Ollama is running.';
+                });
+            
+            // Send message function
+            function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to chat
+                addMessage(message, 'user');
+                userInput.value = '';
+                
+                // Set status
+                statusElement.textContent = 'DeepSeek is thinking...';
+                
+                // Send to API
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        model: modelSelect.value,
+                        system_prompt: systemPrompt.value,
+                        temperature: temperatureSlider.value
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        statusElement.textContent = 'Error: ' + data.error;
+                    } else {
+                        addMessage(data.response, 'bot');
+                        statusElement.textContent = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusElement.textContent = 'Error communicating with the server.';
+                });
+            }
+            
+            // Add message to chat
+            function addMessage(text, sender) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+                
+                if (sender === 'bot') {
+                    // Parse markdown for bot messages
+                    const contentDiv = document.createElement('div');
+                    contentDiv.classList.add('markdown-content');
+                    contentDiv.innerHTML = marked.parse(text);
+                    messageElement.appendChild(contentDiv);
+                } else {
+                    messageElement.textContent = text;
+                }
+                
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
